@@ -8,12 +8,54 @@ lj4lj
 This allows code to create and interact with `lua_State`s.
 
 
+Example
+===
+
+Using the `Light` implementation:
+
+In [Yue][1]:
+```moonscript
+import 'lj4lj' as lj4lj
+
+s = lj4lj.Light!
+
+print_num = =>
+  num = @s\checkinteger 1
+  print num
+
+  0
+
+s\bind_func print_num, 'print_num', 0
+s\dostring 'print_num(1)'
+s\close!
+```
+
+In Lua:
+```lua
+local lj4lj = require('lj4lj')
+
+local s = lj4lj.Light()
+
+local print_num
+print_num = function(self)
+	local num = self.s:checkinteger(1)
+	print(num)
+
+	return 0
+end
+
+s:bind_func(print_num, 'print_num', 0)
+s:dostring('print_num(1)')
+s:close()
+```
+
+
 API
 ===
 
 `lj4lj` offers two ways to interact with the Lua API. The first mechanism is through
 the bare `Lua` type, which is mostly a direct transformation of `luajit/src/lj_api.c`.
-The second is the `SimpleLua` type. `SimpleLua` is an opinionated wrapper around
+The second is the `Light` type. `Light` is an opinionated wrapper around
 the standard APIs and doesn't require much knowledge of the Lua API itself.
 
 ## `Lua`
