@@ -1,0 +1,9 @@
+path = (...)\gsub '%.init$', ''
+
+macro r = (pkg) ->
+  "require(path .. \".\" .. #{ pkg })"
+
+export default {
+  Lj: $r 'lj_api'
+  Light: $r 'light'
+}

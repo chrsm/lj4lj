@@ -1,0 +1,28 @@
+--
+export macro expand_cdef = (src) ->
+  -- replace first arg `_` in func with *ls
+  src = src\gsub '%(_', '(lua_State *L'
+
+  -- replace defines
+  def_m = 'define%(([%w_]+), +([%d%-]+)%);'
+  src = src\gsub def_m, 'static const int %1 = %2;'
+
+  "[[\n\n  #{ src }\n\n]]\n"
+
+export macro c = (k) ->
+  "ffi.C.#{ k }"
+
+export macro call = (fn, ...) ->
+  args = { ... }
+  r = "ffi.C.lua_#{ fn } @s"
+  if #args > 0
+    r ..= ", #{ table.concat args, ', ' }"
+  r
+
+export macro call_l = (fn, ...) ->
+  args = { ... }
+  r = "ffi.C.luaL_#{ fn } @s"
+  if #args > 0
+    r ..= ", #{ table.concat args, ', ' }"
+  r
+

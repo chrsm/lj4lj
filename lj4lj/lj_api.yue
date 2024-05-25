@@ -1,0 +1,308 @@
+import 'macros' as { $ }
+import 'ffi' as ffi
+
+-- definitions transcribed from `luajit/src/lj_api.c` and `luajit/src/lib_aux.c`
+--
+-- this is not a 1:1 mapping:
+--   * some functions are macros and thus not possible to directly use
+--   * some functions i have no use for (at this time)
+ffi.cdef $expand_cdef[[
+  typedef struct lua_State lua_State;
+  typedef int (*lua_CFunction) (lua_State *L);
+  typedef struct luaL_Reg luaL_Reg;
+  typedef ptrdiff_t lua_Integer;
+  typedef double lua_Number;
+
+  // see: https://github.com/LuaJIT/LuaJIT/blob/v2.1/src/lua.h#L73
+  define(LUA_TNONE,         -1);
+  define(LUA_TNIL,           0);
+  define(LUA_TBOOLEAN,       1);
+  define(LUA_TLIGHTUSERDATA, 2);
+  define(LUA_TNUMBER,        3);
+  define(LUA_TSTRING,        4);
+  define(LUA_TTABLE,         5);
+  define(LUA_TFUNCTION,      6);
+  define(LUA_TUSERDATA,      7);
+  define(LUA_TTHREAD,        8);
+
+  // see: https://github.com/LuaJIT/LuaJIT/blob/5790d253972c9d78a0c2aece527eda5b134bbbf7/src/lua.h#L38
+  define(LUA_REGISTRYINDEX, -10000);
+  define(LUA_ENVIRONINDEX,  -10001);
+  define(LUA_GLOBALSINDEX,  -10002);
+
+  lua_State *luaL_newstate();
+  void lua_close(_);
+  int lua_error(_);
+
+  lua_CFunction lua_atpanic(_, lua_CFunction panicf);
+
+  void luaL_openlibs(_);
+  int luaL_loadstring(_, const char *s);
+
+
+  // stack manipulation
+  int lua_gettop(_);
+  void lua_settop(_, int idx);
+  void lua_remove(_, int idx);
+  void lua_insert(_, int idx);
+  void lua_replace(_, int idx);
+  void lua_copy(_, int idx);
+  void lua_pushvalue(_, int idx);
+
+
+  // stack getters
+  int lua_type(_, int idx);
+  void luaL_checktype(_, int idx, int tt);
+  void luaL_checkany(_, int idx);
+  const char *lua_typename(_, int t);
+  int lua_iscfunction(_, int idx);
+  int lua_isnumber(_, int idx);
+  int lua_isstring(_, int idx);
+  int lua_isuserdata(_, int idx);
+  int lua_rawequal(_, int idx1, int idx2);
+  int lua_equal(_, int idx1, int idx2);
+  int lua_lessthan(_, int idx1, int idx2);
+  lua_Number lua_tonumber(_, int idx);
+  lua_Number lua_tonumberx(_, int idx);
+  lua_Number luaL_checknumber(_, int idx);
+  lua_Number luaL_optnumber(_, int idx, lua_Number def);
+  lua_Integer lua_tointeger(_, int idx);
+  lua_Integer lua_tointegerx(_, int idx, int *ok);
+  lua_Integer luaL_checkinteger(_, int idx);
+  lua_Integer luaL_optinteger(_, int idx, lua_Integer def);
+  int lua_toboolean(_, int idx);
+  const char *lua_tolstring(_, int idx, size_t *len);
+  const char *luaL_checklstring(_, int idx, size_t *len);
+  const char *luaL_optlstring(_, int idx, const char *def, size_t *len);
+  int luaL_checkoption(_, int idx, const char *def, const char *const lst[]);
+  size_t lua_objlen(_, int idx);
+  lua_CFunction lua_tocfunction(_, int idx);
+  void *lua_touserdata(_, int idx);
+  lua_State *lua_tothread(_, int idx);
+  const void *lua_topointer(_, int idx);
+
+
+  // stack setters
+  void lua_pushnil(_);
+  void lua_pushnumber(_, lua_Number n);
+  void lua_pushinteger(_, lua_Integer n);
+  void lua_pushlstring(_, const char *str, size_t len);
+  void lua_pushstring(_, const char *s);
+  //void lua_pushvfstring(_, const char *fmt, va_list argp);
+  //void lua_pushfstring(_, const char *fmt, ...);
+  void lua_pushcclosure(_, lua_CFunction fn, int n);
+  void lua_pushboolean(_, int b);
+  void lua_pushlightuserdata(_, void *p);
+  void lua_createtable(_, int narray, int nrec);
+  void luaL_newmetatable(_, const char *tname);
+  void lua_pushthread(_);
+  void lua_newuserdata(_, size_t size);
+  void lua_concat(_, int n);
+
+
+  // object getters
+  void lua_gettable(_, int idx);
+  void lua_getfield(_, int idx, const char *k);
+  void lua_rawget(_, int idx);
+  void lua_rawgeti(_, int idx, int n);
+  int lua_getmetatable(_, int idx);
+  int luaL_getmetafield(_, int idx, const char *field);
+  void lua_getfenv(_, int idx);
+  int lua_next(_, int idx);
+  const char *lua_getupvalue(_, int idx, int n);
+  void *lua_upvalueid(_, int idx, int n);
+  void lua_upvaluejoin(_, int idx1, int n1, int idx2, int n2);
+  void *luaL_testudata(_, int idx, const char *tname);
+  void *luaL_checkudata(_, int idx, const char *tname);
+
+
+  // object setters
+  void lua_settable(_, int idx);
+  void lua_setfield(_, int index, const char *k);
+  void lua_rawset(_, int idx);
+  void lua_rawseti(_, int idx, int n);
+  int lua_setmetatable(_, int idx);
+  void luaL_setmetatable(_, const char *tname);
+  int lua_setfenv(_, int idx);
+  const char *lua_setupvalue(_, int idx, int n);
+
+
+  // calls
+  void lua_call(_, int nargs, int nresults);
+  int lua_pcall(_, int nargs, int nresults, int errfunc);
+  int lua_cpcall(_, lua_CFunction func, void *ud);
+  int luaL_callmeta(_, int idx, const char *field);
+
+
+  // coros
+  int lua_isyieldable(_);
+  int lua_yield(_, int nresults);
+  int lua_resume(_, int nargs);
+
+
+  // gc/memory
+  define(LUA_GCSTOP,       0);
+  define(LUA_GCRESTART,    1);
+  define(LUA_GCCOLLECT,    2);
+  define(LUA_GCCOUNT,      3);
+  define(LUA_GCCOUNTB,     4);
+  define(LUA_GCSTEP,       5);
+  define(LUA_GCSETPAUSE,   6);
+  define(LUA_GCSETSTEPMUL, 7);
+  define(LUA_GCISRUNNING,  9);
+  int lua_gc(_, int what, int data);
+  // (get|set)allocf ignored
+  
+
+  /* auxiliary library (`luajit/src/lib_aux.c`) */
+  // io err handling
+  int luaL_fileresult(_, int stat, const char *fname);
+  int luaL_execresult(_, int stat);
+  void luaL_register(_, const char *libname, const luaL_Reg *l);
+
+
+  // module handling
+  const char *luaL_findtable(_, int idx, const char *fname, int szhint);
+  void luaL_pushmodule(_, const char *modname, int sizehint);
+  void luaL_openlib(_, const char *libname, const luaL_Reg *l, int nup);
+  void luaL_register(_, const char *libname, const luaL_Reg *l);
+  void luaL_setfuncs(_, const luaL_Reg *l, int nup);
+  const char *luaL_gsub(_, const char *s, const char *p, const char *r);
+]]
+
+-- Lua implements useful functions of the Lua API spec
+--
+-- Note that this is *not* comprehensive. It's enough to operate on a lua_State.
+-- This is heavy for simple use cases. Use Easy for a friendly (but opinionated)
+-- wrapper.
+--
+-- TODO: generate this + cdef. _probably_ trivial to regex lj_api.c
+class Lua
+  @TNONE: $c LUA_TNONE 
+  @TNIL: $c LUA_TNIL
+  @TBOOLEAN: $c LUA_TBOOLEAN
+  @TLIGHTUSERDATA: $c LUA_TLIGHTUSERDATA
+  @TNUMBER: $c LUA_TNUMBER
+  @TSTRING: $c LUA_TSTRING
+  @TFUNCTION: $c LUA_TFUNCTION
+  @TUSERDATA: $c LUA_TUSERDATA
+  @TTHREAD: $c LUA_TTHREAD
+
+  @REGISTRYINDEX: $c LUA_REGISTRYINDEX
+  @ENVIRONINDEX: $c LUA_ENVIRONINDEX
+  @GLOBALSINDEX: $c LUA_GLOBALSINDEX
+
+  @GCSTOP: $c LUA_GCSTOP
+  @GCRESTART: $c LUA_GCRESTART
+  @GCCOLLECT: $c LUA_GCCOLLECT
+  @GCCOUNT: $c LUA_GCCOUNT
+  @GCCOUNTB: $c LUA_GCCOUNTB
+  @GCSTEP: $c LUA_GCSTEP
+  @GCSETPAUSE: $c LUA_GCSETPAUSE
+  @GCSETSTEPMUL: $c LUA_GCSETSTEPMUL
+  @GCISRUNNING: $c LUA_GCISRUNNING
+
+  new: =>
+    @s = $c luaL_newstate!
+
+  close: =>
+    $call close
+  pcall: =>
+    $call pcall, 0, 0, 0
+
+  openlibs: =>
+    $call_l openlibs
+
+  loadstring: (str) =>
+    $call_l loadstring, str
+
+  --
+  setfield: (idx, name) =>
+    $call setfield, idx, name
+  getfield: (idx, name) =>
+    $call getfield, idx, name
+  setglobal: (name) =>
+    $call setfield, @@GLOBALSINDEX, name
+  getglobal: (name) =>
+    $call getfield @@GLOBALSINDEX, name
+
+  --
+  pushnil: =>
+    $call pushnil
+  pushnumber: (num) =>
+    $call pushnumber, num
+  pushinteger: (num) =>
+    $call pushinteger, num
+  pushlstring: (str, len) =>
+    $call pushlstring, str, len
+  pushstring: (str) =>
+    $call pushstring, str
+  pushcclosure: (fn, nargs) =>
+    $call pushcclosure, fn, nargs
+  pushcfunction: (fn) =>
+    $call pushcclosure, fn, 0
+  pushboolean: (b) =>
+    $call pushboolean, tonumber(b)
+  pushlightuserdata: (ud) =>
+    $call pushlightuserdata, ud
+  pushthread: =>
+    $call pushthread
+
+  --
+  checktype: (idx, typ) =>
+    $call_l checktype, idx, typ
+  checkany: (idx) =>
+    $call_l checkany, idx
+  typename: (t) =>
+    $call typename, t
+  iscfunction: (idx) =>
+    $call iscfunction, idx
+  isnumber: (idx) =>
+    $call isnumber, idx
+  isstring: (idx) =>
+    $call isstring, idx
+  isuserdata: (idx) =>
+    $call isuserdata, idx
+  checkinteger: (idx) =>
+    $call_l checkinteger, idx
+  checklstring: (idx, len) =>
+    $call_l checklstring, idx, len
+  checkudata: (idx, tname) =>
+    $call_l checkudata, idx, tname
+  checkoption: (idx, def, lst) =>
+    $call_l checkoption, idx, def, lst
+
+  -- macros
+  pop: (n) =>
+    $call settop, -(n) - 1
+  newtable: =>
+    $call createtable, 0, 0
+  strlen: (idx) =>
+    $call objlen, idx
+  isfunction: (idx) =>
+    ($call type, idx) == @@TFUNCTION
+  istable: (idx) =>
+    ($call type, idx) == @@TTABLE
+  islightuserdata: (idx) =>
+    ($call type, idx) == @@TLIGHTUSERDATA
+  isnil: (idx) =>
+    ($call type, idx) == @@TNIL
+  isboolean: (idx) =>
+    ($call type, idx) == @@TBOOLEAN
+  isthread: (idx) =>
+    ($call type, idx) == @@TTHREAD
+  isnone: (idx) =>
+    ($call type, idx) == @@TNONE
+  isnoneornil: (idx) =>
+    ($call type, idx) <= @@TNONE
+  pushliteral: (str) =>
+    $call pushlstring, tostring(str), #str
+  tostring: (idx) =>
+    $call tolstring, idx, 0
+
+  --
+  register: (libname, reg) =>
+    l_reg = ffi.new 'struct luaL_Reg *[1]', { name: reg.name, func: reg.func }
+    $call_l register, libname, l_reg[0]
+
+export default Lua

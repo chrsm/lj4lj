@@ -1,0 +1,47 @@
+import 'macros' as { $ }
+import 'lj4lj.lj_api' as Lj
+
+-- Light implements a more human-friendly interface to the lj4lj API.
+class Light
+  new: (opts = {}) =>
+    @s = Lj!
+
+    if opts.openlibs
+      @s\openlibs!
+  close: =>
+    @s\close!
+
+  -- get_ls returns the raw lua_State*
+  -- This is needed in passed functions if you're interacting with the lua_State.
+  -- For example:
+  --
+  -- script = Light!
+  --
+  -- print_num = ->
+  --   -- check the first argument to this function for a number
+  --   num = script\get_ls\checkinteger 1
+  --   print num
+  --   0
+  --
+  -- script\bind_func print_num, 'print_num'
+  -- script\dostring 'print_num(1)'
+  -- script\close!
+  get_ls: =>
+    @s
+
+  dostring: (str) =>
+    try
+      @s\loadstring str    
+      @s\pcall!
+    catch err
+      return err
+    true
+
+  bind_func: (fn, name, nargs = 0) =>
+    wrap = ->
+      fn @
+
+    @s\pushcclosure wrap, nargs
+    @s\setglobal name
+
+export default Light
