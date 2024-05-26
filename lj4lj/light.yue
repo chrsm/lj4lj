@@ -30,12 +30,12 @@ class Light
     @s
 
   dostring: (str) =>
-    try
-      @s\loadstring str    
-      @s\pcall!
-    catch err
-      return err
-    true
+    res = @s\loadstring str
+    unless res == Lj.OK
+      error 'light: failed to load string as code'
+
+    @s\pcall!
+    nil
 
   bind_func: (fn, name, nargs = 0) =>
     wrap = ->

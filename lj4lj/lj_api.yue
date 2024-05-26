@@ -13,6 +13,14 @@ ffi.cdef $expand_cdef[[
   typedef ptrdiff_t lua_Integer;
   typedef double lua_Number;
 
+  // see: https://github.com/LuaJIT/LuaJIT/blob/v2.1/src/lua.h#L42
+  define(LUA_OK,        0);
+  define(LUA_YIELD,     1);
+  define(LUA_ERRRUN,    2);
+  define(LUA_ERRSYNTAX, 3);
+  define(LUA_ERRMEM,    4);
+  define(LUA_ERRERR,    5);
+
   // see: https://github.com/LuaJIT/LuaJIT/blob/v2.1/src/lua.h#L73
   define(LUA_TNONE,         -1);
   define(LUA_TNIL,           0);
@@ -25,7 +33,7 @@ ffi.cdef $expand_cdef[[
   define(LUA_TUSERDATA,      7);
   define(LUA_TTHREAD,        8);
 
-  // see: https://github.com/LuaJIT/LuaJIT/blob/5790d253972c9d78a0c2aece527eda5b134bbbf7/src/lua.h#L38
+  // see: https://github.com/LuaJIT/LuaJIT/blob/v2.1/src/lua.h#L38
   define(LUA_REGISTRYINDEX, -10000);
   define(LUA_ENVIRONINDEX,  -10001);
   define(LUA_GLOBALSINDEX,  -10002);
@@ -167,6 +175,7 @@ ffi.cdef $expand_cdef[[
   void luaL_openlib(_, const char *libname, const luaL_Reg *l, int nup);
   void luaL_register(_, const char *libname, const luaL_Reg *l);
   void luaL_setfuncs(_, const luaL_Reg *l, int nup);
+
   const char *luaL_gsub(_, const char *s, const char *p, const char *r);
 ]]
 
@@ -178,6 +187,15 @@ ffi.cdef $expand_cdef[[
 --
 -- TODO: generate this + cdef. _probably_ trivial to regex lj_api.c
 class Lua
+  -- thread status
+  @OK: $c LUA_OK
+  @YIELD: $c LUA_YIELD
+  @ERRRUN: $c LUA_ERRRUN
+  @ERRSYNTAX: $c LUA_ERRSYNTAX
+  @ERRMEM: $c LUA_ERRMEM
+  @ERRERR: $c LUA_ERRERR
+
+  -- types
   @TNONE: $c LUA_TNONE 
   @TNIL: $c LUA_TNIL
   @TBOOLEAN: $c LUA_TBOOLEAN
@@ -188,10 +206,12 @@ class Lua
   @TUSERDATA: $c LUA_TUSERDATA
   @TTHREAD: $c LUA_TTHREAD
 
+  -- indexes
   @REGISTRYINDEX: $c LUA_REGISTRYINDEX
   @ENVIRONINDEX: $c LUA_ENVIRONINDEX
   @GLOBALSINDEX: $c LUA_GLOBALSINDEX
 
+  -- gc states
   @GCSTOP: $c LUA_GCSTOP
   @GCRESTART: $c LUA_GCRESTART
   @GCCOLLECT: $c LUA_GCCOLLECT
@@ -204,29 +224,112 @@ class Lua
 
   new: =>
     @s = $c luaL_newstate!
-
   close: =>
     $call close
-  pcall: =>
-    $call pcall, 0, 0, 0
-
   openlibs: =>
     $call_l openlibs
-
+  -- @return int
   loadstring: (str) =>
     $call_l loadstring, str
 
-  --
-  setfield: (idx, name) =>
-    $call setfield, idx, name
-  getfield: (idx, name) =>
-    $call getfield, idx, name
-  setglobal: (name) =>
-    $call setfield, @@GLOBALSINDEX, name
-  getglobal: (name) =>
-    $call getfield @@GLOBALSINDEX, name
 
-  --
+  -- stack getters
+  -- @return int
+  type: (idx) =>
+    $call type, idx
+  checktype: (idx, typ) =>
+    $call_l checktype, idx, typ
+  checkany: (idx) =>
+    $call_l checkany, idx
+  -- @return const char*
+  typename: (t) =>
+    $call typename, t
+  -- @return int
+  iscfunction: (idx) =>
+    $call iscfunction, idx
+  -- @return int
+  isnumber: (idx) =>
+    $call isnumber, idx
+  -- @return int
+  isstring: (idx) =>
+    $call isstring, idx
+  -- @return int
+  isuserdata: (idx) =>
+    $call isuserdata, idx
+  -- @return int
+  rawequal: (idx1, idx2) =>
+    $call rawequal, idx1, idx2
+  -- @return int
+  equal: (idx1, idx2) =>
+    $call equal, idx1, idx2
+  -- @return int
+  lessthan: (idx1, idx2) =>
+    $call lessthan, idx1, idx2
+  -- @return lua_Number
+  tonumber: (idx) =>
+    $call tonumber, idx
+  -- @return lua_Number
+  tonumberx: (idx) =>
+    $call tonumberx, idx
+  -- @return lua_Number
+  checknumber: (idx) =>
+    $call_l checknumber, idx
+  -- @return lua_Number
+  optnumber: (idx, def) =>
+    -- TODO: verify this works
+    $call_l optnumber, idx, def
+  -- @return lua_Integer
+  tointeger: (idx) =>
+    $call tointeger, idx
+  -- @return lua_Integer
+  tointegerx: (idx, b) =>
+    -- TODO: verify this works
+    b = false
+    $call tointegerx, idx, b
+  -- @return lua_Integer
+  checkinteger: (idx) =>
+    $call_l checkinteger, idx
+  -- @return lua_Integer
+  optinteger: (idx, def) =>
+    -- TODO: verify this works
+    $call_l optinteger, idx, def
+  -- @return int
+  toboolean: (idx) =>
+    $call toboolean, idx
+  -- @return const char*
+  tolstring: (idx, len) =>
+    $call tolstring, len
+  -- @return const char*
+  checklstring: (idx, len) =>
+    $call_l checklstring, idx, len
+  -- @return const char*
+  optlstring: (idx, def, len) =>
+    -- TODO: verify this works
+    $call_l optlstring, idx, def, len
+  -- @return int
+  checkoption: (idx, def, lst) =>
+    -- TODO: verify this works
+    -- (it probably doesn't)
+    $call_l checkoption, idx, def, lst
+  -- @return size_t
+  objlen: (idx) =>
+    $call objlen, idx
+  -- @return lua_CFunction
+  tocfunction: (idx) =>
+    $call tocfunction, idx
+  -- @return void*
+  touserdata: (idx) =>
+    $call touserdata, idx
+  -- @return lua_State*
+  tothread: (idx) =>
+    $call tothread, idx
+  -- @return const void*
+  topointer: (idx) =>
+    $call topointer, idx
+
+
+  -- stack setters
+  -- all of these are void
   pushnil: =>
     $call pushnil
   pushnumber: (num) =>
@@ -245,34 +348,137 @@ class Lua
     $call pushboolean, tonumber(b)
   pushlightuserdata: (ud) =>
     $call pushlightuserdata, ud
+  createtable: (narray, nrec) =>
+    $call createtable, narray, nrec
+  newmetatable: (size) =>
+    $call_l newmetatable, size
   pushthread: =>
     $call pushthread
+  newuserdata: (size) =>
+    $call newuserdata, size
+  concat: (n) =>
+    $call concat, n
 
-  --
-  checktype: (idx, typ) =>
-    $call_l checktype, idx, typ
-  checkany: (idx) =>
-    $call_l checkany, idx
-  typename: (t) =>
-    $call typename, t
-  iscfunction: (idx) =>
-    $call iscfunction, idx
-  isnumber: (idx) =>
-    $call isnumber, idx
-  isstring: (idx) =>
-    $call isstring, idx
-  isuserdata: (idx) =>
-    $call isuserdata, idx
-  checkinteger: (idx) =>
-    $call_l checkinteger, idx
-  checklstring: (idx, len) =>
-    $call_l checklstring, idx, len
+
+  -- object getters
+  gettable: (idx) =>
+    $call gettable, idx
+  getfield: (idx, name) =>
+    $call getfield, idx, name
+  rawget: (idx) =>
+    $call rawget, idx
+  rawgeti: (idx, n) =>
+    $call rawgeti, idx
+  getmetatable: (idx) =>
+    $call getmetatable, idx
+  getmetafield: (idx, field) =>
+    $call_l getmetafield, idx, field
+  getfenv: (idx) =>
+    $call getfenv, idx
+  next: (idx) =>
+    $call next, idx
+  -- @return const char*
+  getupvalue: (idx, n) =>
+    $call getupvalue, idx, n
+  -- @return void*
+  upvalueid: (idx, n) =>
+    $call upvalueid, idx, n
+  upvaluejoin: (idx1, n1, idx2, n2) =>
+    $call upvaluejoin, idx1, n1, idx2, n2
+  -- @return void*
+  testudata: (idx, tname) =>
+    $call_l testudata, tname
+  -- @return void*
   checkudata: (idx, tname) =>
     $call_l checkudata, idx, tname
-  checkoption: (idx, def, lst) =>
-    $call_l checkoption, idx, def, lst
 
-  -- macros
+
+  -- object setters
+  settable: (idx) =>
+    $call settable, idx
+  setfield: (idx, name) =>
+    $call setfield, idx, name
+  rawset: (idx) =>
+    $call rawset, idx
+  rawseti: (idx, n) =>
+    $call rawseti, idx, n
+  -- @return int
+  setmetatable: (idx) =>
+    $call setmetatable, idx
+  l_setmetatable: (tname) =>
+    $call_l setmetatable, tname
+  -- @return int
+  setfenv: (idx) =>
+    $call setfenv, idx
+  -- @return const char*
+  setupvalue: (idx, n) =>
+    $call setupvalue, idx, n
+
+
+  -- calls
+  call: (nargs = 0, nresults = 0) =>
+    $call call, nargs, nresults
+  -- @return int
+  pcall: (nargs = 0, nresults = 0, errfunc = 0) =>
+    $call pcall, nargs, nresults, errfunc
+  -- @return int
+  cpcall: (func, ud) =>
+    -- (lua_CFunction, void*)
+    $call cpcall, func, ud
+  -- @return int
+  callmeta: (idx, field) =>
+    $call_l callmeta, idx, field
+
+
+  -- coros
+  isyieldable: =>
+    $call isyieldable
+  yield: (nresults) =>
+    $call yield, nresults
+  resume: (nargs) =>
+    $call resume, nargs
+
+
+  -- gc/mem
+  -- @return int
+  gc: (what, data) =>
+    $call gc, what, data
+
+
+  -- auxiliary io
+  -- @return int
+  fileresult: (stat, fname) =>
+    $call_l fileresult, stat, fname
+  -- @return int
+  execresult: (stat) =>
+    $call_l execresult, stat
+
+
+  -- auxiliary modules
+  -- @return const char*
+  findtable: (idx, fname, szhint) =>
+    $call_l findtable, idx, fname, szhint
+  pushmodule: (modname, sizehint) =>
+    $call_l pushmodule, modname, sizehint
+  openlib: (libname, l_reg, nup) =>
+    -- TODO: verify this works
+    $call_l openlib, libname, l_reg, nup
+  register: (libname, reg) =>
+    -- TODO: verify this works
+    l_reg = ffi.new 'struct luaL_Reg *[1]', { name: reg.name, func: reg.func }
+    $call_l register, libname, l_reg[0]
+  setfuncs: (l_reg, nup) =>
+    -- TODO: verify this works
+    l_reg = ffi.new 'struct luaL_Reg *[1]', { name: reg.name, func: reg.func }
+    $call_l setfuncs, l_reg[0], nup
+
+  -- not sure why this is here..
+  -- @return const char*
+  gsub: (s, p, r) =>
+    $call_l gsub, s, p, r
+
+
+  -- functions that are actually macros (and useful)
   pop: (n) =>
     $call settop, -(n) - 1
   newtable: =>
@@ -299,10 +505,9 @@ class Lua
     $call pushlstring, tostring(str), #str
   tostring: (idx) =>
     $call tolstring, idx, 0
-
-  --
-  register: (libname, reg) =>
-    l_reg = ffi.new 'struct luaL_Reg *[1]', { name: reg.name, func: reg.func }
-    $call_l register, libname, l_reg[0]
+  setglobal: (name) =>
+    $call setfield, @@GLOBALSINDEX, name
+  getglobal: (name) =>
+    $call getfield @@GLOBALSINDEX, name
 
 export default Lua
