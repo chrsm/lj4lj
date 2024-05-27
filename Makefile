@@ -2,20 +2,27 @@
 
 DATE := $(shell TZ=UTC date +'%Y-%m-%d %H:%M:%S UTC')
 
+# this is most certainly incorrect for people other than myself.
+LUA_PATH=${HOME}/.luarocks/share/lua/5.1/?.lua;${HOME}/.luarocks/share/lua/5.1/?/init.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;./?/init.lua
+LUA_CPATH=${HOME}/.luarocks/lib/lua/5.1/?.so;/usr/lib/lua/5.1/?.so
+BUSTED_BIN=luajit ${HOME}/.luarocks/lib/luarocks/rocks-5.1/busted/2.2.0-1/bin/busted
+
 .PHONY: all
 all: build
 
 .PHONY: build
 build:
-	cd lj4lj && yue -l -s .
+	cd src && yue -l -s -t ../lj4lj .
+	cd spec && yue -l -s .
 
 .PHONY: clean
 clean:
-	cd lj4lj && find . -type f -name '*.lua' -delete
+	cd src && find . -type f -name '*.lua' -delete
+	cd spec && find . -type f -name '*.lua' -delete
 
 .PHONY: test
 test: build
-	busted -C lj4lj -o gtest
+	${BUSTED_BIN} -v -C . -o gtest
 
 .PHONY: help
 help: Makefile
