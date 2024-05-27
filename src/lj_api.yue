@@ -170,13 +170,10 @@ ffi.cdef $expand_cdef[[
 
 
   // module handling
-  const char *luaL_findtable(_, int idx, const char *fname, int szhint);
   void luaL_pushmodule(_, const char *modname, int sizehint);
   void luaL_openlib(_, const char *libname, const luaL_Reg *l, int nup);
   void luaL_register(_, const char *libname, const luaL_Reg *l);
   void luaL_setfuncs(_, const luaL_Reg *l, int nup);
-
-  const char *luaL_gsub(_, const char *s, const char *p, const char *r);
 ]]
 
 -- Lua implements useful functions of the Lua API spec
@@ -243,7 +240,7 @@ class Lua
     $call_l checkany, idx
   -- @return const char*
   typename: (t) =>
-    $call typename, t
+    ffi.string $call typename, t
   -- @return int
   iscfunction: (idx) =>
     $call iscfunction, idx
@@ -298,14 +295,13 @@ class Lua
     $call toboolean, idx
   -- @return const char*
   tolstring: (idx, len) =>
-    $call tolstring, len
+    ffi.string $call tolstring, idx, len
   -- @return const char*
   checklstring: (idx, len) =>
-    $call_l checklstring, idx, len
+    ffi.string $call_l checklstring, idx, len
   -- @return const char*
-  optlstring: (idx, def, len) =>
-    -- TODO: verify this works
-    $call_l optlstring, idx, def, len
+  optlstring: (idx, def) =>
+    ffi.string $call_l optlstring, idx, def, nil
   -- @return int
   checkoption: (idx, def, lst) =>
     -- TODO: verify this works
@@ -368,7 +364,7 @@ class Lua
   rawget: (idx) =>
     $call rawget, idx
   rawgeti: (idx, n) =>
-    $call rawgeti, idx
+    $call rawgeti, idx, n
   getmetatable: (idx) =>
     $call getmetatable, idx
   getmetafield: (idx, field) =>
@@ -379,7 +375,7 @@ class Lua
     $call next, idx
   -- @return const char*
   getupvalue: (idx, n) =>
-    $call getupvalue, idx, n
+    ffi.string $call getupvalue, idx, n
   -- @return void*
   upvalueid: (idx, n) =>
     $call upvalueid, idx, n
@@ -387,7 +383,7 @@ class Lua
     $call upvaluejoin, idx1, n1, idx2, n2
   -- @return void*
   testudata: (idx, tname) =>
-    $call_l testudata, tname
+    $call_l testudata, idx, tname
   -- @return void*
   checkudata: (idx, tname) =>
     $call_l checkudata, idx, tname
@@ -412,7 +408,7 @@ class Lua
     $call setfenv, idx
   -- @return const char*
   setupvalue: (idx, n) =>
-    $call setupvalue, idx, n
+    ffi.string $call setupvalue, idx, n
 
 
   -- calls
@@ -455,9 +451,6 @@ class Lua
 
 
   -- auxiliary modules
-  -- @return const char*
-  findtable: (idx, fname, szhint) =>
-    $call_l findtable, idx, fname, szhint
   pushmodule: (modname, sizehint) =>
     $call_l pushmodule, modname, sizehint
   openlib: (libname, l_reg, nup) =>
@@ -467,16 +460,10 @@ class Lua
     -- TODO: verify this works
     l_reg = ffi.new 'struct luaL_Reg *[1]', { name: reg.name, func: reg.func }
     $call_l register, libname, l_reg[0]
-  setfuncs: (l_reg, nup) =>
+  setfuncs: (reg, nup) =>
     -- TODO: verify this works
     l_reg = ffi.new 'struct luaL_Reg *[1]', { name: reg.name, func: reg.func }
     $call_l setfuncs, l_reg[0], nup
-
-  -- not sure why this is here..
-  -- @return const char*
-  gsub: (s, p, r) =>
-    $call_l gsub, s, p, r
-
 
   -- functions that are actually macros (and useful)
   pop: (n) =>
@@ -504,7 +491,7 @@ class Lua
   pushliteral: (str) =>
     $call pushlstring, tostring(str), #str
   tostring: (idx) =>
-    $call tolstring, idx, 0
+    ffi.string $call tolstring, idx, 0
   setglobal: (name) =>
     $call setfield, @@GLOBALSINDEX, name
   getglobal: (name) =>
